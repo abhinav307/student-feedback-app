@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import FormBuilder from './pages/FormBuilder';
 import PublicForm from './pages/PublicForm';
 import Receipt from './pages/Receipt';
+import VerifyReceipt from './pages/VerifyReceipt';
 import Responses from './pages/Responses';
 import FormAnalytics from './pages/FormAnalytics';
 import Layout from './components/Layout';

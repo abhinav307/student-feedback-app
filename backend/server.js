@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import formRoutes from './routes/forms.js';
 import responseRoutes from './routes/responses.js';
+import analyticsRoutes from './routes/analytics.js';
 import mediaRoutes from './routes/media.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -40,6 +41,7 @@ connectDB();
 app.use('/api/auth', authRoutes);
 app.use('/api/forms', formRoutes);
 app.use('/api/responses', responseRoutes);
+app.use('/api/analytics', analyticsRoutes);
 app.use('/api/media', mediaRoutes);
 
 app.get('/', (req, res) => {
