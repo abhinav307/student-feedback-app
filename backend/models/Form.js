@@ -17,11 +17,7 @@ const formSchema = new mongoose.Schema({
   fields: [fieldSchema],
   publicId: { type: String, unique: true, required: true },
   status: { type: String, default: 'published' }, // 'draft', 'published', 'closed'
-  theme: {
-    primaryColor: { type: String, default: '#4f46e5' },
-    backgroundColor: { type: String, default: '#f9fafb' },
-    fontFamily: { type: String, default: 'Inter, sans-serif' }
-  }
+  theme: { type: Object, default: {} }
 }, { timestamps: true });
 
 export default mongoose.model('Form', formSchema);
