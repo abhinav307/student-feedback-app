@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Student Feedback</title>
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    />
+</head>
+<body>
+    <div class="container">
+        <h1>📝 Student Feedback Form</h1>
+
+        <!-- Feedback submission form -->
+        <form action="{{ url_for('submit') }}" method="POST" class="feedback-form">
+            <div class="form-group">
+                <label for="name">Student Name</label>
+                <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    placeholder="Enter your name"
+                    required
+                />
+            </div>
+
+            <div class="form-group">
+                <label for="course">Course</label>
+                <input
+                    type="text"
+                    id="course"
+                    name="course"
+                    placeholder="Enter your course"
+                    required
+                />
+            </div>
+
+            <div class="form-group">
+                <label for="feedback">Feedback</label>
+                <textarea
+                    id="feedback"
+                    name="feedback"
+                    rows="4"
+                    placeholder="Enter your feedback"
+                    required
+                ></textarea>
+            </div>
+
+            <button type="submit" class="btn">Submit Feedback</button>
+        </form>
+
+        <!-- Display submitted feedback -->
+        <h2>Submitted Feedback</h2>
+
+        {% if feedbacks %}
+        <div class="feedback-list">
+            {% for fb in feedbacks %}
+            <div class="feedback-card">
+                <p><strong>Name:</strong> {{ fb.name }}</p>
+                <p><strong>Course:</strong> {{ fb.course }}</p>
+                <p><strong>Feedback:</strong> {{ fb.feedback }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="no-feedback">No feedback submitted yet.</p>
+        {% endif %}
+    </div>
+</body>
+</html>
