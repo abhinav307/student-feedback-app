@@ -1,5 +1,6 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { Home } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import FormBuilder from './pages/FormBuilder';
@@ -8,7 +9,20 @@ import Receipt from './pages/Receipt';
 import VerifyReceipt from './pages/VerifyReceipt';
 import Responses from './pages/Responses';
 import FormAnalytics from './pages/FormAnalytics';
+import Settings from './pages/Settings';
 import Layout from './components/Layout';
+
+function NotFound() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+      <h1 className="text-6xl font-bold text-gray-900 mb-4">404</h1>
+      <p className="text-xl text-gray-500 mb-8">Page not found</p>
+      <Link to="/" className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition">
+        <Home size={20} /> Back to Dashboard
+      </Link>
+    </div>
+  );
+}
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -24,6 +38,7 @@ function App() {
         {/* Public Routes */}
         <Route path="/form/:publicId" element={<PublicForm />} />
         <Route path="/receipt/:receiptId" element={<Receipt />} />
+        <Route path="/verify/:receiptId" element={<VerifyReceipt />} />
         
         {/* Auth Route */}
         <Route path="/login" element={
@@ -39,9 +54,12 @@ function App() {
           <Route path="responses/:formId" element={<Responses token={token} />} />
           <Route path="analytics/:formId" element={<FormAnalytics token={token} />} />
           <Route path="forms" element={<Dashboard token={token} />} />
-          <Route path="analytics" element={<div className="p-8 text-center text-gray-500">Analytics Dashboard coming soon.</div>} />
-          <Route path="settings" element={<div className="p-8 text-center text-gray-500">Settings panel coming soon.</div>} />
+          <Route path="analytics" element={<Navigate to="/" />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
+        
+        {/* Catch All */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
   );

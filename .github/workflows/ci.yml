@@ -1,31 +1,43 @@
-name: CI/CD Pipeline
+name: Formify CI/CD Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [ main, master ]
   pull_request:
-    branches: [main]
+    branches: [ main, master ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [22.x]
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: |
+          frontend/package-lock.json
+          backend/package-lock.json
 
-      - name: Install Backend Dependencies
-        working-directory: ./backend
-        run: npm ci || npm install
+    - name: Install Backend Dependencies
+      working-directory: ./backend
+      run: npm ci || npm install
 
-      - name: Install Frontend Dependencies
-        working-directory: ./frontend
-        run: npm ci || npm install
+    - name: Install Frontend Dependencies
+      working-directory: ./frontend
+      run: npm ci || npm install
 
-      - name: Build Frontend
-        working-directory: ./frontend
-        run: npm run build
+    - name: Build Frontend
+      working-directory: ./frontend
+      run: npm run build
+      
+    - name: Check Backend Syntax
+      working-directory: ./backend
+      run: node -c server.js
