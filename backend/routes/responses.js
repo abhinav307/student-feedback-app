@@ -10,96 +10,108 @@ const router = express.Router();
 router.post('/submit/:publicId', async (req, res) => {
   try {
     const form = await Form.findOne({ publicId: req.params.publicId });
-    if (!form || form.status !== 'published') {
-      return res.status(400).json({ message: 'Invalid or inactive form' });
-    }
+    if (!form) return res.status(404).json({ message: 'Form not found' });
+    if (form.status !== 'published') return res.status(400).json({ message: 'Form is not published' });
 
-    const receiptId = 'REC-' + crypto.randomBytes(4).toString('hex').toUpperCase();
+    const submissionId = 'SUB-' + crypto.randomBytes(4).toString('hex').toUpperCase();
     
-    // Extract basic info if present
-    const answers = req.body.answers || [];
+    // Process answers and validate required fields
+    const rawAnswers = req.body.answers || [];
+    const formattedAnswers = [];
+    
     let studentName = 'Anonymous';
+    let email = 'N/A';
     let course = 'N/A';
-    
-    // Try to find name/course from answers based on label mapping (heuristic for demo)
-    answers.forEach(ans => {
-      const field = form.fields.find(f => f.id === ans.fieldId);
-      if (field) {
-        if (field.label.toLowerCase().includes('name')) studentName = ans.value;
-        if (field.label.toLowerCase().includes('course')) course = ans.value;
+    let branch = 'N/A';
+    let semester = 'N/A';
+
+    // Build the formatted answers ensuring we only accept fields that exist in the form
+    for (const field of form.fields) {
+      if (field.type === 'image' || field.type === 'video') continue; // non-interactive blocks
+      
+      const submittedAns = rawAnswers.find(a => a.fieldId === field.id);
+      
+      if (field.required && (!submittedAns || !submittedAns.value)) {
+        return res.status(400).json({ message: `Field "${field.label}" is required.` });
       }
-    });
+
+      const val = submittedAns ? submittedAns.value : null;
+
+      formattedAnswers.push({
+        fieldId: field.id,
+        fieldLabel: field.label,
+        fieldType: field.type,
+        value: val
+      });
+
+      // Heuristics to extract metadata for dashboard overview
+      if (val) {
+        const lbl = field.label.toLowerCase();
+        if (lbl.includes('name')) studentName = val;
+        if (lbl.includes('email')) email = val;
+        if (lbl.includes('course')) course = val;
+        if (lbl.includes('branch')) branch = val;
+        if (lbl.includes('semester')) semester = val;
+      }
+    }
 
     const response = await Response.create({
       formId: form._id,
-      answers,
+      submissionId,
       studentName,
+      email,
       course,
-      receiptId
+      branch,
+      semester,
+      answers: formattedAnswers,
+      metadata: req.body.metadata || {}
     });
 
-    res.status(201).json({ receiptId: response.receiptId, message: 'Submission successful' });
+    // Update response count in Form
+    await Form.findByIdAndUpdate(form._id, { $inc: { responseCount: 1 } });
+
+    // Send receipt
+    res.status(201).json({ receiptId: response.submissionId, message: 'Submission successful' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
 // Get receipt by ID (Public)
-router.get('/receipt/:receiptId', async (req, res) => {
+router.get('/receipt/:submissionId', async (req, res) => {
   try {
-    const response = await Response.findOne({ receiptId: req.params.receiptId }).populate('formId', 'title description type theme');
+    const response = await Response.findOne({ submissionId: req.params.submissionId }).populate('formId', 'title description type theme');
     if (!response) return res.status(404).json({ message: 'Receipt not found' });
-    res.json(response);
+    res.json({ ...response.toObject(), receiptId: response.submissionId }); // Maintain backwards compat for frontend relying on receiptId mapping
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// Get all responses for a form (Manager)
+// Get all responses for a form (Manager) - Secured and Paginated
 router.get('/form/:formId', protect, async (req, res) => {
   try {
-    const form = await Form.findById(req.params.formId);
-    if (!form || form.managerId.toString() !== req.user._id.toString()) {
-      return res.status(404).json({ message: 'Form not found' });
-    }
-    const responses = await Response.find({ formId: req.params.formId }).sort({ createdAt: -1 });
-    res.json(responses);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
 
-// Get analytics for a form (Manager)
-router.get('/analytics/:formId', protect, async (req, res) => {
-  try {
     const form = await Form.findById(req.params.formId);
-    if (!form || form.managerId.toString() !== req.user._id.toString()) {
-      return res.status(404).json({ message: 'Form not found' });
+    if (!form) return res.status(404).json({ message: 'Form not found' });
+    if (form.managerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Unauthorized access to form responses' });
     }
-    const responses = await Response.find({ formId: req.params.formId });
-    
-    const totalResponses = responses.length;
-    let sumRating = 0;
-    let ratingCount = 0;
-    
-    // Calculate average rating if there's a rating field
-    const ratingField = form.fields.find(f => f.type === 'rating');
-    if (ratingField) {
-      responses.forEach(r => {
-        const ans = r.answers.find(a => a.fieldId === ratingField.id);
-        if (ans && ans.value) {
-          sumRating += Number(ans.value);
-          ratingCount++;
-        }
-      });
-    }
-    
-    const averageRating = ratingCount > 0 ? (sumRating / ratingCount).toFixed(1) : 0;
+
+    const total = await Response.countDocuments({ formId: req.params.formId });
+    const responses = await Response.find({ formId: req.params.formId })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     res.json({
-      totalResponses,
-      averageRating,
-      // We can add more aggregations here
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+      responses
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

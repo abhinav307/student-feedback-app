@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import FormBuilder from './pages/FormBuilder';
 import PublicForm from './pages/PublicForm';
 import Receipt from './pages/Receipt';
+import Responses from './pages/Responses';
 import Layout from './components/Layout';
 
 function App() {
@@ -33,6 +34,7 @@ function App() {
         }>
           <Route index element={<Dashboard token={token} />} />
           <Route path="builder/:id?" element={<FormBuilder token={token} />} />
+          <Route path="responses/:formId" element={<Responses token={token} />} />
           <Route path="forms" element={<Dashboard token={token} />} />
           <Route path="analytics" element={<div className="p-8 text-center text-gray-500">Analytics Dashboard coming soon.</div>} />
           <Route path="settings" element={<div className="p-8 text-center text-gray-500">Settings panel coming soon.</div>} />

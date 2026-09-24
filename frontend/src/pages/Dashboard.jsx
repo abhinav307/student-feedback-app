@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
-  FileText, Users, Link as LinkIcon, Trash2, 
+  FileText, Users, Link as LinkIcon, Trash2, Inbox,
   Plus, MoreVertical, ExternalLink, BarChart2, Edit3, MessageSquare
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -207,6 +207,7 @@ export default function Dashboard({ token }) {
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <ActionBtn icon={LinkIcon} tooltip="Copy Link" onClick={() => copyToClipboard(form.publicId)} />
                         <ActionBtn icon={ExternalLink} tooltip="Preview" onClick={() => window.open(`/form/${form.publicId}`, '_blank')} />
+                        <ActionBtn icon={Inbox} tooltip="Responses" onClick={() => navigate(`/responses/${form._id}`)} />
                         <ActionBtn icon={Edit3} tooltip="Edit" onClick={() => navigate(`/builder/${form._id}`)} />
                         <ActionBtn icon={Trash2} tooltip="Delete" onClick={() => deleteForm(form._id)} danger />
                       </div>
