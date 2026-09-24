@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Welcome | EduFeedback{% endblock %}
+{% block content %}
+<div class="landing-page">
+    <h1>Welcome to EduFeedback</h1>
+    <p>A unified system for students to provide valuable feedback and for administrators to manage and analyze it.</p>
+    
+    <div class="landing-cards">
+        <div class="card action-card">
+            <h2>For Students</h2>
+            <p>Submit your course feedback and receive a downloadable receipt.</p>
+            <a href="{{ url_for('student') }}" class="btn">Submit Feedback</a>
+        </div>
+
+        <div class="card action-card">
+            <h2>For Managers</h2>
+            <p>Access the administrative dashboard to review submissions.</p>
+            <a href="{{ url_for('manager_login') }}" class="btn btn-secondary">Manager Login</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

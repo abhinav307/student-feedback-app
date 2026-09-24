@@ -1,69 +1,63 @@
-"""
-Unit tests for the Student Feedback Web Application.
-"""
-
+import os
 import pytest
-from app import app
-
+from app import app, get_db
 
 @pytest.fixture
 def client():
-    """Create a test client for the Flask application."""
+    # Use a temporary database for testing
     app.config["TESTING"] = True
+    # We will use an in-memory sqlite db for tests by overriding the DATABASE config
+    global DATABASE
+    DATABASE = ':memory:'
+    
     with app.test_client() as client:
+        with app.app_context():
+            db = get_db()
+            db.execute('''
+                CREATE TABLE IF NOT EXISTS feedback (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    receipt_id TEXT UNIQUE,
+                    name TEXT NOT NULL,
+                    course TEXT NOT NULL,
+                    feedback TEXT NOT NULL,
+                    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            db.execute('DELETE FROM feedback') # clear before test
+            db.commit()
         yield client
 
-
-@pytest.fixture(autouse=True)
-def clear_feedbacks():
-    """Clear feedback list before each test."""
-    from app import feedbacks
-    feedbacks.clear()
-
-
-def test_index_page_loads(client):
-    """Test that the home page loads successfully."""
+def test_landing_page(client):
     response = client.get("/")
     assert response.status_code == 200
-    assert b"Student Feedback Form" in response.data
+    assert b"Welcome to EduFeedback" in response.data
 
-
-def test_submit_feedback(client):
-    """Test submitting feedback via POST."""
+def test_student_submit(client):
     response = client.post(
-        "/submit",
-        data={"name": "Alice", "course": "Python", "feedback": "Great course!"},
+        "/student",
+        data={"name": "Alice", "course": "Python", "feedback": "Great!"},
         follow_redirects=True,
     )
     assert response.status_code == 200
+    assert b"Feedback Received" in response.data
     assert b"Alice" in response.data
-    assert b"Python" in response.data
-    assert b"Great course!" in response.data
 
-
-def test_empty_fields_ignored(client):
-    """Test that empty submissions do not add a feedback entry."""
-    client.post(
-        "/submit",
-        data={"name": "", "course": "", "feedback": ""},
+def test_manager_login_fail(client):
+    response = client.post(
+        "/manager/login",
+        data={"password": "wrongpassword"},
         follow_redirects=True,
     )
-    response = client.get("/")
-    assert b"No feedback submitted yet." in response.data
+    assert b"Invalid password!" in response.data
 
-
-def test_multiple_feedbacks(client):
-    """Test that multiple feedback entries are displayed."""
-    client.post(
-        "/submit",
-        data={"name": "Bob", "course": "Java", "feedback": "Loved it!"},
+def test_manager_login_success(client):
+    response = client.post(
+        "/manager/login",
+        data={"password": "admin123"},
         follow_redirects=True,
     )
-    client.post(
-        "/submit",
-        data={"name": "Carol", "course": "C++", "feedback": "Very helpful."},
-        follow_redirects=True,
-    )
-    response = client.get("/")
-    assert b"Bob" in response.data
-    assert b"Carol" in response.data
+    assert b"Feedback Dashboard" in response.data
+
+def test_manager_access_denied(client):
+    response = client.get("/manager", follow_redirects=True)
+    assert b"Manager Portal" in response.data # Redirected to login

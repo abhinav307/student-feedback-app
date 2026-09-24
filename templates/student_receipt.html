@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Feedback Receipt{% endblock %}
+{% block content %}
+<div class="receipt-container" id="receipt">
+    <div class="receipt-header">
+        <h2>✅ Feedback Received</h2>
+        <p class="receipt-id">Receipt ID: <strong>{{ entry.receipt_id }}</strong></p>
+    </div>
+    
+    <div class="receipt-body">
+        <p><strong>Name:</strong> {{ entry.name }}</p>
+        <p><strong>Course:</strong> {{ entry.course }}</p>
+        <p><strong>Date Submitted:</strong> {{ entry.submitted_at }}</p>
+        <div class="receipt-feedback">
+            <strong>Your Feedback:</strong>
+            <p>{{ entry.feedback }}</p>
+        </div>
+    </div>
+</div>
+
+<div class="text-center" style="margin-top: 2rem;">
+    <button onclick="window.print()" class="btn">🖨️ Download / Print Receipt</button>
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
+</div>
+
+<style>
+    /* Print specific styles hiding the UI elements */
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+        #receipt, #receipt * {
+            visibility: visible;
+        }
+        #receipt {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            border: none;
+            box-shadow: none;
+        }
+    }
+</style>
+{% endblock %}

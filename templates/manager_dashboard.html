@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Manager Dashboard{% endblock %}
+{% block content %}
+<div class="dashboard">
+    <div class="dashboard-header">
+        <h1>📊 Feedback Dashboard</h1>
+        <div class="stats-badge">Total Submissions: {{ total }}</div>
+    </div>
+
+    {% if feedbacks %}
+        <div class="table-responsive">
+            <table class="dashboard-table">
+                <thead>
+                    <tr>
+                        <th>Receipt ID</th>
+                        <th>Name</th>
+                        <th>Course</th>
+                        <th>Feedback</th>
+                        <th>Date</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fb in feedbacks %}
+                    <tr>
+                        <td><code>{{ fb.receipt_id }}</code></td>
+                        <td>{{ fb.name }}</td>
+                        <td>{{ fb.course }}</td>
+                        <td class="feedback-text">{{ fb.feedback }}</td>
+                        <td class="date-col">{{ fb.submitted_at }}</td>
+                        <td>
+                            <form action="{{ url_for('delete_feedback', feedback_id=fb.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this feedback?');">
+                                <button type="submit" class="btn-delete">🗑️ Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <p>No feedback submissions found yet.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
