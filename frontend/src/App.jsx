@@ -1,0 +1,41 @@
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import Dashboard from './pages/Dashboard';
+import Login from './pages/Login';
+import FormBuilder from './pages/FormBuilder';
+import PublicForm from './pages/PublicForm';
+import Receipt from './pages/Receipt';
+import Layout from './components/Layout';
+
+function App() {
+  const [token, setToken] = useState(localStorage.getItem('token'));
+
+  useEffect(() => {
+    if (token) localStorage.setItem('token', token);
+    else localStorage.removeItem('token');
+  }, [token]);
+
+  return (
+    <Router>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/form/:publicId" element={<PublicForm />} />
+        <Route path="/receipt/:receiptId" element={<Receipt />} />
+        
+        {/* Auth Route */}
+        <Route path="/login" element={
+          !token ? <Login setToken={setToken} /> : <Navigate to="/" />
+        } />
+
+        {/* Protected Manager Routes */}
+        <Route path="/" element={
+          token ? <Layout setToken={setToken} /> : <Navigate to="/login" />
+        }>
+          <Route index element={<Dashboard token={token} />} />
+          <Route path="builder/:id?" element={<FormBuilder token={token} />} />
+        </Route>
+      </Routes>
+    </Router>
+  );
+}
+export default App;
