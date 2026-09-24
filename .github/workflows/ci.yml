@@ -29,7 +29,8 @@ jobs:
 
       # Step 4 - Run unit tests
       - name: Run tests
-        run: pytest tests/ -v
+        run: python -m pytest tests/ -v
+
 
   deploy:
     needs: build-and-test
