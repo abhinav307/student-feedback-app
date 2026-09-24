@@ -756,6 +756,13 @@ export default function FormBuilder({ token }) {
                   <label className="block text-xs font-semibold text-gray-400 uppercase mb-1 tracking-wider">Card Container</label>
                   <ColorPicker label="Card Color" val={t.cardColor} onChange={v => updateTheme('cardColor', v)} />
                   <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600">Layout:</span>
+                    <select className="bg-gray-50 border p-1 rounded" value={t.layout || 'single'} onChange={e => updateTheme('layout', e.target.value)}>
+                      <option value="single">Single Page</option>
+                      <option value="multistep">Multi-Step (by Section)</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-600">Opacity:</span>
                     <input type="range" min="0" max="1" step="0.05" value={t.cardTransparency} onChange={e => updateTheme('cardTransparency', parseFloat(e.target.value))} className="w-32" />
                   </div>
