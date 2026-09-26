@@ -17,7 +17,6 @@ let mongoServer;
 let tokenUser1;
 let tokenUser2;
 let user1Id;
-let user2Id;
 let staleToken;
 
 beforeAll(async () => {
@@ -27,7 +26,6 @@ beforeAll(async () => {
   const user1 = await User.create({ name: 'User 1', email: 'u1@test.com', password: 'password123' });
   const user2 = await User.create({ name: 'User 2', email: 'u2@test.com', password: 'password123' });
   user1Id = user1._id;
-  user2Id = user2._id;
 
   tokenUser1 = jwt.sign({ id: user1._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
   tokenUser2 = jwt.sign({ id: user2._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });

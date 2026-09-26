@@ -71,7 +71,7 @@ describe('QuizTimer attempt logic', () => {
     });
     
     it('duplicate attempt submission check', async () => {
-        const attempt = await QuizAttempt.create({
+        await QuizAttempt.create({
             attemptId: '1237',
             publicId: 'pub4',
             formId: new mongoose.Types.ObjectId(),
