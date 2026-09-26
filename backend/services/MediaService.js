@@ -1,48 +1,26 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
-
-// Ensure uploads directory exists
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-}
+import { v2 as cloudinary } from 'cloudinary';
 
 class MediaService {
   /**
-   * Abstracted upload method. Currently uses local storage, 
-   * but can be swapped out for S3/Cloudinary in production.
+   * Delete media from Cloudinary
+   * @param {string} publicId - The Cloudinary public_id (stored as filename in DB)
+   * @param {string} type - The media type ('image', 'video', 'audio', 'gif')
    */
-  async upload(file) {
-    // With multer, the file is already saved to disk. We just return the URL structure.
-    const url = `/uploads/${file.filename}`;
-    return {
-      url,
-      filename: file.filename,
-      mimeType: file.mimetype,
-      size: file.size
-    };
-  }
-
-  async delete(filename) {
+  async delete(publicId, type = 'image') {
     try {
-      const filePath = path.join(UPLOADS_DIR, filename);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-        return true;
+      if (!publicId) return false;
+      
+      let resourceType = 'image';
+      if (type === 'video' || type === 'audio') {
+        resourceType = 'video';
       }
-      return false;
+
+      const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+      return result.result === 'ok';
     } catch (err) {
-      console.error('Error deleting file:', err);
+      console.error('Error deleting file from Cloudinary:', err);
       return false;
     }
-  }
-
-  getUrl(filename) {
-    return `/uploads/${filename}`;
   }
 }
 

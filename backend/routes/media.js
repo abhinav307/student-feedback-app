@@ -1,43 +1,38 @@
 import express from 'express';
 import multer from 'multer';
-import path from 'path';
-import crypto from 'crypto';
-import { fileURLToPath } from 'url';
+import { v2 as cloudinary } from 'cloudinary';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import Media from '../models/Media.js';
 import MediaService from '../services/MediaService.js';
 import { protect } from '../middleware/auth.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
-
 const router = express.Router();
 
-// Multer config for local storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, UPLOADS_DIR);
+// Ensure Cloudinary is configured (will pick up CLOUDINARY_URL from env)
+// But to be safe if CLOUDINARY_URL fails, we can configure manually if needed
+// Cloudinary automatically uses process.env.CLOUDINARY_URL if it exists.
+
+// Configure multer-storage-cloudinary
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: async (req, file) => {
+    // Determine resource_type based on mimetype
+    let resource_type = 'image';
+    if (file.mimetype.startsWith('video/') || file.mimetype.startsWith('audio/')) {
+      resource_type = 'video'; // Cloudinary uses 'video' for both video and audio
+    }
+
+    return {
+      folder: 'formify',
+      resource_type: resource_type,
+      allowed_formats: ['jpg', 'png', 'webp', 'gif', 'mp4', 'mp3', 'wav', 'ogg']
+    };
   },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = crypto.randomBytes(8).toString('hex');
-    cb(null, `${uniqueSuffix}${path.extname(file.originalname)}`);
-  }
 });
 
-// Validation
-const fileFilter = (req, file, cb) => {
-  const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'audio/mpeg', 'audio/wav', 'audio/ogg'];
-  if (allowedMimes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Invalid file type. Only JPG, PNG, WEBP, GIF, MP4, MP3, WAV, and OGG are allowed.'), false);
-  }
-};
-
 const upload = multer({ 
-  storage,
-  fileFilter,
-  limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit for videos/audio
+  storage: storage,
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
 });
 
 // Upload endpoint
@@ -53,8 +48,15 @@ router.post('/upload', protect, upload.single('file'), async (req, res) => {
     if (req.file.mimetype.startsWith('video/')) type = 'video';
     if (req.file.mimetype.startsWith('audio/')) type = 'audio';
 
-    // Process via abstract service
-    const mediaData = await MediaService.upload(req.file);
+    // The file is already uploaded to Cloudinary by multer
+    // req.file.path contains the secure cloudinary URL
+    // req.file.filename contains the public_id
+    const mediaData = {
+      url: req.file.path,
+      filename: req.file.filename,
+      mimeType: req.file.mimetype,
+      size: req.file.size
+    };
 
     // Save metadata to DB
     const media = await Media.create({
@@ -64,15 +66,9 @@ router.post('/upload', protect, upload.single('file'), async (req, res) => {
       ...mediaData
     });
 
-    // Instead of hardcoding localhost, we can construct it dynamically based on the request,
-    // or return a relative URL. Let's return the full URL dynamically based on the request host.
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-    const host = req.get('host');
-    const fullUrl = `${protocol}://${host}${media.url}`;
-
     res.status(201).json({
       _id: media._id,
-      url: fullUrl,
+      url: media.url, // Directly return the Cloudinary URL
       type: media.type,
       filename: media.filename
     });
@@ -88,7 +84,10 @@ router.delete('/:id', protect, async (req, res) => {
       return res.status(404).json({ message: 'Media not found' });
     }
 
-    await MediaService.delete(media.filename);
+    // Delete from Cloudinary
+    await MediaService.delete(media.filename, media.type);
+    
+    // Delete from DB
     await media.deleteOne();
 
     res.json({ message: 'Media deleted' });
