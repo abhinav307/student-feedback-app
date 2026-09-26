@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Download, Filter, MessageSquare, AlertCircle, BarChart3, TrendingUp, Users, Star, Clock } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, PieChart, Pie, Legend } from 'recharts';
@@ -22,7 +22,7 @@ export default function FormAnalytics({ token }) {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`http://localhost:5000/api/analytics/form/${formId}?days=${daysFilter}`, {
+      const res = await api.get(`/analytics/form/${formId}?days=${daysFilter}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStats(res.data);
@@ -111,10 +111,36 @@ export default function FormAnalytics({ token }) {
              </ResponsiveContainer>
           </div>
 
+            {stats.quizStats && (
+              <div className="mb-8">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <BarChart3 size={20} className="text-indigo-500"/> Quiz Performance
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="bg-white dark:bg-[#111113] p-6 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm">
+                     <p className="text-sm font-semibold text-gray-500 mb-2">Average Score</p>
+                     <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.quizStats.averagePercentage}%</p>
+                  </div>
+                  <div className="bg-white dark:bg-[#111113] p-6 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm">
+                     <p className="text-sm font-semibold text-gray-500 mb-2">Pass Rate</p>
+                     <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.quizStats.passPercentage}%</p>
+                  </div>
+                  <div className="bg-white dark:bg-[#111113] p-6 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm">
+                     <p className="text-sm font-semibold text-gray-500 mb-2">Highest Score</p>
+                     <p className="text-3xl font-bold text-emerald-500">{stats.quizStats.highestScore}%</p>
+                  </div>
+                  <div className="bg-white dark:bg-[#111113] p-6 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm">
+                     <p className="text-sm font-semibold text-gray-500 mb-2">Lowest Score</p>
+                     <p className="text-3xl font-bold text-rose-500">{stats.quizStats.lowestScore}%</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-             {Object.entries(stats.fields).map(([fieldId, field]) => {
+              {Object.entries(stats.fields).map(([fieldId, field]) => {
                 const isChoice = ['radio', 'dropdown', 'checkbox', 'yesno'].includes(field.type);
-                const isRating = field.type === 'rating';
+                const isRating = ['rating', 'emoji'].includes(field.type);
                 const isText = ['text', 'longtext'].includes(field.type);
                 const isNumber = ['number', 'slider'].includes(field.type);
                 

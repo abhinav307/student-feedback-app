@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Settings, Save, Plus, Trash, Image as ImageIcon, Video, 
@@ -19,6 +19,37 @@ const DEFAULT_THEME = {
   buttonBgColor: '#4f46e5', buttonTextColor: '#ffffff', buttonRadius: '8px',
   fontFamily: 'Inter, sans-serif', logoUrl: '', logoAlign: 'center'
 };
+
+const PRESET_COLORS = [
+  '#ffffff', '#f8fafc', '#f1f5f9', '#e2e8f0', '#000000', '#0f172a', '#1e293b', '#334155',
+  '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e', '#10b981', '#14b8a6',
+  '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e'
+];
+
+const PRESET_GRADIENTS = [
+  'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+  'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)',
+  'linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)',
+  'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)',
+  'linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%)',
+  'linear-gradient(135deg, #f6d365 0%, #fda085 100%)',
+  'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)',
+  'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+  'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)',
+  'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+  'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+  'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+  'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
+  'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)',
+  'linear-gradient(135deg, #ff0844 0%, #ffb199 100%)',
+  'linear-gradient(135deg, #fccb90 0%, #d57eeb 100%)',
+  'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)',
+  'linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)',
+  'linear-gradient(135deg, #09203f 0%, #537895 100%)',
+  'linear-gradient(135deg, #29323c 0%, #485563 100%)',
+  'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+  'linear-gradient(135deg, #4ca1af 0%, #c4e0e5 100%)',
+];
 
 const PRESETS = {
   'Modern Blue': { ...DEFAULT_THEME, backgroundColor: '#f0f9ff', buttonBgColor: '#0ea5e9' },
@@ -50,6 +81,11 @@ const FIELD_LIBRARY = [
   { group: 'Media & Layout', items: [
     { type: 'image', icon: ImageIcon, label: 'Image' }, { type: 'video', icon: Video, label: 'Video' }, { type: 'section', icon: Layers, label: 'Section Break' },
   ]},
+  { group: 'Quiz', items: [
+    { type: 'quiz-mcq', icon: CheckSquare, label: 'Multiple Choice' }, 
+    { type: 'quiz-boolean', icon: ToggleLeft, label: 'True / False' },
+    { type: 'quiz-multiselect', icon: CheckSquare, label: 'Multiple Select' }
+  ]}
 ];
 
 export default function FormBuilder({ token }) {
@@ -93,7 +129,7 @@ export default function FormBuilder({ token }) {
 
   useEffect(() => {
     if (id) {
-      axios.get(`http://localhost:5000/api/forms/${id}`, {
+      api.get(`/forms/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       }).then(res => {
         setForm({ 
@@ -115,7 +151,7 @@ export default function FormBuilder({ token }) {
     setSaveState('Saving...');
     const timer = setTimeout(async () => {
       try {
-        await axios.put(`http://localhost:5000/api/forms/${id}`, form, { headers: { Authorization: `Bearer ${token}` }});
+        await api.put(`/forms/${id}`, form, { headers: { Authorization: `Bearer ${token}` }});
         setSaveState('Saved ✓');
         setTimeout(() => setSaveState(''), 2000);
       } catch(e) { setSaveState('Error saving'); }
@@ -125,11 +161,16 @@ export default function FormBuilder({ token }) {
 
   const addField = (type) => {
     const newId = Date.now().toString();
+    
+    let min = ''; let max = ''; let step = '';
+    if (type === 'rating' || type === 'emoji') { min = 1; max = 5; step = 1; }
+    else if (type === 'slider') { min = 0; max = 100; step = 1; }
+    
     const newField = { 
       id: newId, type, label: type === 'section' ? 'New Section' : 'New Question', 
       description: '', placeholder: '', required: false,
       options: ['radio', 'checkbox', 'dropdown'].includes(type) ? ['Option 1', 'Option 2'] : [],
-      url: '', caption: '', align: 'center', width: '100%', borderRadius: '8px', min: '', max: '', charLimit: ''
+      url: '', caption: '', align: 'center', width: '100%', borderRadius: '8px', min, max, step, charLimit: ''
     };
     
     setForm(prev => {
@@ -176,23 +217,45 @@ export default function FormBuilder({ token }) {
   };
   const handleDragOver = (e) => e.preventDefault();
 
+  const ensureFormSaved = async () => {
+    if (id) return id;
+    setSaveState('Saving draft...');
+    const payload = { ...form, status: 'draft' };
+    const res = await api.post('/forms', payload, { headers: { Authorization: `Bearer ${token}` }});
+    navigate(`/builder/${res.data._id}`, { replace: true });
+    setSaveState('');
+    return res.data._id;
+  };
+
   const handleMediaUpload = async (file, fieldId) => {
     if (!file) return;
-    const formData = new FormData(); formData.append('file', file);
     try {
-      const res = await axios.post('http://localhost:5000/api/media/upload', formData, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }});
+      const currentId = await ensureFormSaved();
+      const formData = new FormData(); 
+      formData.append('file', file);
+      formData.append('formId', currentId);
+      showToast('Uploading...');
+      const res = await api.post('/media/upload', formData, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }});
       updateField(fieldId, { url: res.data.url });
-    } catch (err) {}
+      showToast('Image uploaded');
+    } catch (err) {
+      showToast('Upload failed: ' + (err.response?.data?.message || err.message));
+    }
   };
 
   const handleLogoUpload = async (file) => {
     if (!file) return;
     setUploadingLogo(true);
-    const formData = new FormData(); formData.append('file', file);
     try {
-      const res = await axios.post('http://localhost:5000/api/media/upload', formData, { headers: { Authorization: `Bearer ${token}` }});
+      const currentId = await ensureFormSaved();
+      const formData = new FormData(); 
+      formData.append('file', file);
+      formData.append('formId', currentId);
+      const res = await api.post('/media/upload', formData, { headers: { Authorization: `Bearer ${token}` }});
       updateTheme('logoUrl', res.data.url);
-    } catch (err) {} finally { setUploadingLogo(false); }
+    } catch (err) {
+      showToast('Upload failed: ' + (err.response?.data?.message || err.message));
+    } finally { setUploadingLogo(false); }
   };
 
   const handleBgUpload = async (file) => {
@@ -200,10 +263,12 @@ export default function FormBuilder({ token }) {
     setUploadingBg(true);
     const formData = new FormData(); formData.append('file', file);
     try {
-      const res = await axios.post('http://localhost:5000/api/media/upload', formData, { headers: { Authorization: `Bearer ${token}` }});
+      const res = await api.post('/media/upload', formData, { headers: { Authorization: `Bearer ${token}` }});
       updateTheme('backgroundImage', res.data.url);
       updateTheme('backgroundType', 'image');
-    } catch (err) {} finally { setUploadingBg(false); }
+    } catch (err) {
+      showToast('Upload failed: ' + (err.response?.data?.message || err.message));
+    } finally { setUploadingBg(false); }
   };
 
   const updateTheme = (key, value) => setForm(prev => ({ ...prev, theme: { ...prev.theme, [key]: value } }));
@@ -214,13 +279,13 @@ export default function FormBuilder({ token }) {
       setSaveState('Saving...');
       const payload = { ...form, status: 'draft' };
       if (id) {
-        await axios.put(`http://localhost:5000/api/forms/${id}`, payload, { headers: { Authorization: `Bearer ${token}` }});
+        await api.put(`/forms/${id}`, payload, { headers: { Authorization: `Bearer ${token}` }});
         setSaveState('Saved ✓');
       } else {
-        const res = await axios.post('http://localhost:5000/api/forms', payload, { headers: { Authorization: `Bearer ${token}` }});
+        const res = await api.post('/forms', payload, { headers: { Authorization: `Bearer ${token}` }});
         navigate(`/builder/${res.data._id}`, { replace: true });
       }
-    } catch (err) { setSaveState(''); }
+    } catch (err) { setSaveState(''); showToast('Error saving draft: ' + (err.response?.data?.message || err.message)); }
   };
 
   const openPublishModal = () => {
@@ -232,15 +297,18 @@ export default function FormBuilder({ token }) {
     try {
       const payload = { ...form, status: 'published' };
       if (id) {
-        await axios.put(`http://localhost:5000/api/forms/${id}`, payload, { headers: { Authorization: `Bearer ${token}` }});
+        await api.put(`/forms/${id}`, payload, { headers: { Authorization: `Bearer ${token}` }});
         setForm(prev => ({ ...prev, status: 'published' }));
       } else {
-        const res = await axios.post('http://localhost:5000/api/forms', payload, { headers: { Authorization: `Bearer ${token}` }});
+        const res = await api.post('/forms', payload, { headers: { Authorization: `Bearer ${token}` }});
         setForm(prev => ({ ...prev, status: 'published', publicId: res.data.publicId }));
         navigate(`/builder/${res.data._id}`, { replace: true });
       }
       setPublishStep(2); // Go to share screen
-    } catch (err) { alert('Error publishing'); }
+    } catch (err) {
+      console.error('Publish Error:', err.response?.data || err);
+      showToast(`Error publishing: ${err.response?.data?.message || err.message}`);
+    }
   };
 
   const copyPublicLink = () => {
@@ -269,8 +337,8 @@ export default function FormBuilder({ token }) {
   };
 
   const openPreview = () => {
-    if(!id) { alert("Please save the form at least once before previewing."); return; }
-    window.open(`/form/${form.publicId}`, '_blank');
+    sessionStorage.setItem('formPreview', JSON.stringify(form));
+    window.open('/form/preview', '_blank');
   };
 
   const hexToRgba = (hex, alpha) => {
@@ -422,7 +490,7 @@ export default function FormBuilder({ token }) {
             <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Field Library</h2>
           </div>
           <div className="p-4 space-y-6">
-            {FIELD_LIBRARY.map((group, idx) => (
+            {FIELD_LIBRARY.filter(g => form.type === 'quiz' ? true : g.group !== 'Quiz').map((group, idx) => (
               <div key={idx}>
                 <h3 className="text-xs font-semibold text-gray-900 dark:text-gray-300 mb-3">{group.group}</h3>
                 <div className="grid grid-cols-1 gap-2">
@@ -620,7 +688,7 @@ export default function FormBuilder({ token }) {
                   <div><label className="block text-xs font-semibold text-gray-500 mb-1">Placeholder</label><input type="text" className="w-full p-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none" value={selectedField.placeholder || ''} onChange={e => updateField(selectedField.id, { placeholder: e.target.value })} /></div>
                 )}
 
-                {['radio', 'checkbox', 'dropdown'].includes(selectedField.type) && (
+                {['radio', 'checkbox', 'dropdown', 'quiz-mcq', 'quiz-multiselect'].includes(selectedField.type) && (
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 mb-2">Options</label>
                     <div className="space-y-2">
@@ -632,6 +700,45 @@ export default function FormBuilder({ token }) {
                       ))}
                       <button onClick={() => updateField(selectedField.id, { options: [...selectedField.options, `Option ${selectedField.options.length + 1}`] })} className="text-xs font-bold text-indigo-600 hover:underline">+ Add Option</button>
                     </div>
+                  </div>
+                )}
+
+                {['rating', 'emoji', 'slider'].includes(selectedField.type) && (
+                  <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <div className="flex gap-4">
+                      <div className="flex-1">
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Minimum</label>
+                        <input type="number" className="w-full p-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:border-indigo-500" value={selectedField.min !== undefined ? selectedField.min : ''} onChange={e => updateField(selectedField.id, { min: e.target.value })} />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Maximum</label>
+                        <input type="number" className="w-full p-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:border-indigo-500" value={selectedField.max !== undefined ? selectedField.max : ''} onChange={e => updateField(selectedField.id, { max: e.target.value })} />
+                      </div>
+                      {selectedField.type === 'slider' && (
+                        <div className="flex-1">
+                          <label className="block text-xs font-semibold text-gray-500 mb-1">Step</label>
+                          <input type="number" className="w-full p-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:border-indigo-500" value={selectedField.step !== undefined ? selectedField.step : ''} onChange={e => updateField(selectedField.id, { step: e.target.value })} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {['image', 'video'].includes(selectedField.type) && (
+                  <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <label className="block text-xs font-semibold text-gray-500 mb-2">Upload {selectedField.type === 'image' ? 'Image/GIF' : 'Video'}</label>
+                    <label className="w-full border-2 border-dashed border-gray-300 dark:border-gray-700 p-4 flex flex-col items-center justify-center rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                      <UploadCloud size={20} className="text-gray-400 mb-2" />
+                      <span className="text-xs text-gray-500">{selectedField.url ? 'Change File' : 'Select File'}</span>
+                      <input 
+                        type="file" 
+                        accept={selectedField.type === 'image' ? "image/*" : "video/*"} 
+                        className="hidden" 
+                        onChange={(e) => handleMediaUpload(e.target.files[0], selectedField.id)} 
+                      />
+                    </label>
+                    {selectedField.url && (
+                      <button onClick={() => updateField(selectedField.id, { url: '' })} className="mt-2 text-xs text-red-500 font-medium">Remove Media</button>
+                    )}
                   </div>
                 )}
 
@@ -649,11 +756,53 @@ export default function FormBuilder({ token }) {
 
             {activeRightTab === 'theme' && (
               <div className="space-y-6 pb-12 animate-in fade-in zoom-in-95 duration-200">
-                <div className="space-y-3">
-                  <label className="block text-xs font-semibold text-gray-400 uppercase mb-1 tracking-wider">Background</label>
-                  <select className="w-full bg-gray-50 border rounded-lg p-2 text-sm outline-none dark:bg-gray-900 dark:border-gray-700 dark:text-white" value={t.backgroundType} onChange={e => updateTheme('backgroundType', e.target.value)}>
-                    <option value="color">Solid Color</option><option value="gradient">Gradient</option><option value="image">Image</option>
-                  </select>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase mb-1 tracking-wider">Background</label>
+                    <select className="w-full bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-lg p-2 text-sm outline-none dark:bg-[#0c0c0e] dark:text-white" value={t.backgroundType} onChange={e => updateTheme('backgroundType', e.target.value)}>
+                      <option value="color">Solid Color</option>
+                      <option value="gradient">Gradient</option>
+                      <option value="image">Image</option>
+                    </select>
+                  </div>
+
+                  {t.backgroundType === 'color' && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
+                      <ColorPicker label="Custom Color" val={t.backgroundColor} onChange={v => updateTheme('backgroundColor', v)} />
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">Presets</label>
+                        <div className="grid grid-cols-5 gap-2">
+                          {PRESET_COLORS.map((c, i) => (
+                            <button
+                              key={i}
+                              onClick={() => updateTheme('backgroundColor', c)}
+                              className={`w-full aspect-square rounded-lg border-2 transition-transform hover:scale-110 shadow-sm ${t.backgroundColor === c ? 'border-indigo-500 scale-110 z-10' : 'border-transparent'}`}
+                              style={{ backgroundColor: c }}
+                              title={c}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {t.backgroundType === 'gradient' && (
+                    <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">Preset Gradients</label>
+                        <div className="grid grid-cols-4 gap-2">
+                          {PRESET_GRADIENTS.map((g, i) => (
+                            <button
+                              key={i}
+                              onClick={() => updateTheme('backgroundGradient', g)}
+                              className={`w-full aspect-[4/3] rounded-lg border-2 transition-transform hover:scale-110 shadow-sm ${t.backgroundGradient === g ? 'border-indigo-500 scale-110 z-10' : 'border-transparent'}`}
+                              style={{ background: g }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-3">
                   <label className="block text-xs font-semibold text-gray-400 uppercase mb-1 tracking-wider">Card Container</label>
@@ -670,6 +819,48 @@ export default function FormBuilder({ token }) {
 
             {activeRightTab === 'settings' && (
               <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 uppercase mb-3 tracking-wider">Form Type</label>
+                  <select className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-2 text-sm outline-none dark:text-white mb-4" value={form.type} onChange={e => setForm({...form, type: e.target.value})}>
+                    <option value="feedback">Feedback Form</option>
+                    <option value="survey">Survey</option>
+                    <option value="custom">Custom Form</option>
+                    <option value="quiz">Quiz</option>
+                  </select>
+                </div>
+                {form.type === 'quiz' && (
+                  <div className="pt-2 pb-4 border-b border-gray-100 dark:border-gray-800 space-y-4">
+                    <h4 className="text-xs font-bold text-indigo-500 uppercase tracking-wider">Quiz Settings</h4>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Passing Score (%)</span>
+                      <input type="number" className="w-20 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-1.5 text-sm outline-none text-right" value={form.settings.passingScore || ''} onChange={e => updateSettings('passingScore', e.target.value)} placeholder="40" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Time Limit (mins)</span>
+                      <input type="number" className="w-20 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-1.5 text-sm outline-none text-right" value={form.settings.timeLimit || ''} onChange={e => updateSettings('timeLimit', e.target.value)} placeholder="0" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Max Attempts</span>
+                      <input type="number" className="w-20 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-1.5 text-sm outline-none text-right" value={form.settings.maxAttempts || ''} onChange={e => updateSettings('maxAttempts', e.target.value)} placeholder="1" />
+                    </div>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500" checked={form.settings.shuffleQuestions || false} onChange={e => updateSettings('shuffleQuestions', e.target.checked)} />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Shuffle Questions</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500" checked={form.settings.shuffleOptions || false} onChange={e => updateSettings('shuffleOptions', e.target.checked)} />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Shuffle Options</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500" checked={form.settings.showResult !== false} onChange={e => updateSettings('showResult', e.target.checked)} />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Show Result to Student</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500" checked={form.settings.showCorrectAnswers || false} onChange={e => updateSettings('showCorrectAnswers', e.target.checked)} />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Show Correct Answers</span>
+                    </label>
+                  </div>
+                )}
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 uppercase mb-3 tracking-wider">Form Status</label>
                   <select className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-2 text-sm outline-none dark:text-white" value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
@@ -731,3 +922,4 @@ function ColorPicker({ label, val, onChange }) {
     </div>
   );
 }
+

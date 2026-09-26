@@ -11,6 +11,8 @@ import Responses from './pages/Responses';
 import FormAnalytics from './pages/FormAnalytics';
 import Settings from './pages/Settings';
 import Layout from './components/Layout';
+import Onboarding from './pages/Onboarding';
+
 
 function NotFound() {
   return (
@@ -30,6 +32,10 @@ function App() {
   useEffect(() => {
     if (token) localStorage.setItem('token', token);
     else localStorage.removeItem('token');
+
+    const handleAuthExpired = () => setToken(null);
+    window.addEventListener('auth-expired', handleAuthExpired);
+    return () => window.removeEventListener('auth-expired', handleAuthExpired);
   }, [token]);
 
   return (
@@ -45,15 +51,16 @@ function App() {
           !token ? <Login setToken={setToken} /> : <Navigate to="/" />
         } />
 
+        <Route path="/onboarding" element={ token ? <Onboarding /> : <Navigate to="/login" /> } />
         {/* Protected Manager Routes */}
         <Route path="/" element={
           token ? <Layout setToken={setToken} /> : <Navigate to="/login" />
         }>
-          <Route index element={<Dashboard token={token} />} />
-          <Route path="builder/:id?" element={<FormBuilder token={token} />} />
-          <Route path="responses/:formId" element={<Responses token={token} />} />
-          <Route path="analytics/:formId" element={<FormAnalytics token={token} />} />
-          <Route path="forms" element={<Dashboard token={token} />} />
+          <Route index element={<Dashboard token={token} setToken={setToken} />} />
+          <Route path="builder/:id?" element={<FormBuilder token={token} setToken={setToken} />} />
+          <Route path="responses/:formId" element={<Responses token={token} setToken={setToken} />} />
+          <Route path="analytics/:formId" element={<FormAnalytics token={token} setToken={setToken} />} />
+          <Route path="forms" element={<Dashboard token={token} setToken={setToken} />} />
           <Route path="analytics" element={<Navigate to="/" />} />
           <Route path="settings" element={<Settings />} />
         </Route>

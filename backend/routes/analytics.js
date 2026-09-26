@@ -16,9 +16,10 @@ router.get('/dashboard', protect, async (req, res) => {
     const totalResponses = responses.length;
     const totalForms = forms.length;
     
+    const days = parseInt(req.query.days) || 30;
     const trendMap = {};
     const today = new Date();
-    for (let i = 29; i >= 0; i--) {
+    for (let i = days - 1; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
       trendMap[d.toISOString().split('T')[0]] = 0;
@@ -123,13 +124,17 @@ router.get('/form/:formId', protect, async (req, res) => {
         fieldStat.answered++;
         
         if (['radio', 'dropdown', 'yesno'].includes(fieldStat.type)) {
-          if (fieldStat.data[val] !== undefined) fieldStat.data[val]++;
+          fieldStat.data[val] = (fieldStat.data[val] || 0) + 1;
         } else if (fieldStat.type === 'checkbox') {
-          val.split(',').map(s => s.trim()).forEach(opt => {
-            if (fieldStat.data[opt] !== undefined) fieldStat.data[opt]++;
-          });
-        } else if (fieldStat.type === 'rating') {
-          if (fieldStat.data[val] !== undefined) fieldStat.data[val]++;
+          if (Array.isArray(val)) {
+             val.forEach(opt => fieldStat.data[opt] = (fieldStat.data[opt] || 0) + 1);
+          } else if (typeof val === 'string') {
+             val.split(',').map(s => s.trim()).forEach(opt => {
+               fieldStat.data[opt] = (fieldStat.data[opt] || 0) + 1;
+             });
+          }
+        } else if (['rating', 'emoji'].includes(fieldStat.type)) {
+          fieldStat.data[val] = (fieldStat.data[val] || 0) + 1;
           totalRating += Number(val); ratingCount++;
         } else if (['text', 'longtext'].includes(fieldStat.type)) {
           if (fieldStat.recent.length < 10) fieldStat.recent.push({ text: val, date: r.createdAt });
@@ -146,12 +151,62 @@ router.get('/form/:formId', protect, async (req, res) => {
       Object.keys(stats.fields).forEach(fid => {
         if (!answeredFields.has(fid)) stats.fields[fid].skipped++;
       });
+      
+      // Collect Quiz Metrics
+      if (form.type === 'quiz' && r.quizResult) {
+        stats.quizStats = stats.quizStats || {
+          totalAttempts: 0,
+          passCount: 0,
+          failCount: 0,
+          totalScoreSum: 0,
+          totalScoreCount: 0,
+          highestScore: 0,
+          lowestScore: null,
+          distribution: { '0-20%': 0, '21-40%': 0, '41-60%': 0, '61-80%': 0, '81-100%': 0 }
+        };
+        
+        stats.quizStats.totalAttempts++;
+        if (r.quizResult.passed) stats.quizStats.passCount++;
+        else stats.quizStats.failCount++;
+        
+        stats.quizStats.totalScoreSum += r.quizResult.percentage;
+        stats.quizStats.totalScoreCount++;
+        
+        if (r.quizResult.percentage > stats.quizStats.highestScore) stats.quizStats.highestScore = r.quizResult.percentage;
+        if (stats.quizStats.lowestScore === null || r.quizResult.percentage < stats.quizStats.lowestScore) stats.quizStats.lowestScore = r.quizResult.percentage;
+        
+        const pct = r.quizResult.percentage;
+        if (pct <= 20) stats.quizStats.distribution['0-20%']++;
+        else if (pct <= 40) stats.quizStats.distribution['21-40%']++;
+        else if (pct <= 60) stats.quizStats.distribution['41-60%']++;
+        else if (pct <= 80) stats.quizStats.distribution['61-80%']++;
+        else stats.quizStats.distribution['81-100%']++;
+        
+        // Question Accuracy
+        if (r.quizResult.questionResults) {
+          r.quizResult.questionResults.forEach(qr => {
+            const fStat = stats.fields[qr.fieldId];
+            if (fStat) {
+              fStat.quizAttempts = (fStat.quizAttempts || 0) + 1;
+              fStat.quizCorrect = (fStat.quizCorrect || 0) + (qr.isCorrect ? 1 : 0);
+            }
+          });
+        }
+      }
     });
+    
+    if (stats.quizStats && stats.quizStats.totalAttempts > 0) {
+      stats.quizStats.averagePercentage = (stats.quizStats.totalScoreSum / stats.quizStats.totalAttempts).toFixed(1);
+      stats.quizStats.passPercentage = ((stats.quizStats.passCount / stats.quizStats.totalAttempts) * 100).toFixed(1);
+    }
     
     stats.averageRating = ratingCount > 0 ? (totalRating / ratingCount).toFixed(1) : null;
     Object.values(stats.fields).forEach(fs => {
       if (['number', 'slider'].includes(fs.type) && fs.count > 0) {
         fs.average = (fs.sum / fs.count).toFixed(2);
+      }
+      if (['quiz-mcq', 'quiz-boolean', 'quiz-multiselect'].includes(fs.type) && fs.quizAttempts > 0) {
+        fs.accuracy = ((fs.quizCorrect / fs.quizAttempts) * 100).toFixed(1);
       }
     });
     

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../services/api';
 import { CheckCircle2, XCircle, Loader2, ArrowLeft, ShieldCheck, FileText, Calendar, Hash } from 'lucide-react';
 
 export default function VerifyReceipt() {
@@ -10,7 +10,7 @@ export default function VerifyReceipt() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    axios.get(`http://localhost:5000/api/responses/verify/${receiptId}`)
+    api.get(`/responses/verify/${receiptId}`)
       .then(res => {
         setData(res.data);
         setLoading(false);

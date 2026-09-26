@@ -10,6 +10,7 @@ import formRoutes from './routes/forms.js';
 import responseRoutes from './routes/responses.js';
 import analyticsRoutes from './routes/analytics.js';
 import mediaRoutes from './routes/media.js';
+import notificationRoutes from './routes/notifications.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { MongoMemoryServer } from 'mongodb-memory-server';
@@ -17,8 +18,12 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 dotenv.config();
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || '*',
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '10mb' }));
 app.use(helmet());
 app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }));
 
@@ -57,12 +62,16 @@ app.use('/api/forms', formRoutes);
 app.use('/api/responses', responseRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/media', mediaRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/', (req, res) => {
   res.send('API is running...');
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+export default app;

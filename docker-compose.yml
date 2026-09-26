@@ -7,13 +7,18 @@ services:
     environment:
       - PORT=5000
       - JWT_SECRET=formify_super_secret_jwt_2026
+      # Set to the actual domain in production
+      - FRONTEND_URL=${FRONTEND_URL:-*}
       # Uncomment and set below for production MongoDB
       # - MONGODB_URI=mongodb+srv://<user>:<pass>@cluster0.mongodb.net/formify?retryWrites=true&w=majority
     volumes:
       - ./backend/uploads:/app/uploads
 
   frontend:
-    build: ./frontend
+    build: 
+      context: ./frontend
+      args:
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:5000/api}
     ports:
       - "80:80"
     depends_on:

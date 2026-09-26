@@ -16,6 +16,7 @@ export default function Responses({ token }) {
   // Table Controls
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [searchField, setSearchField] = useState('all');
   const [sortField, setSortField] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedIds, setSelectedIds] = useState([]);
@@ -104,8 +105,6 @@ export default function Responses({ token }) {
 
   const exportCSV = async (exportSelected = false) => {
     try {
-      // If we only want selected, we can filter current page data
-      // Otherwise, we hit the export endpoint to get all
       let responsesToExport = [];
       if (exportSelected && selectedIds.length > 0) {
         responsesToExport = data.responses.filter(r => selectedIds.includes(r._id));
@@ -116,35 +115,67 @@ export default function Responses({ token }) {
         responsesToExport = res.data;
       }
       
-      if (!responsesToExport.length) return alert('No data to export');
+      if (!responsesToExport.length) return showToast('No data to export');
 
-      // Extract all unique field headers from all responses dynamically
-      const dynamicFields = new Set();
+      // Preserve form order
+      const orderedLabels = (data.form?.fields || []).map(f => f.label || f.type);
+      
+      const dynamicFields = new Set(orderedLabels);
       responsesToExport.forEach(r => {
-        r.answers.forEach(a => dynamicFields.add(a.fieldLabel));
+        if (Array.isArray(r.answers)) {
+          r.answers.forEach(a => { if(a && a.fieldLabel) dynamicFields.add(a.fieldLabel); });
+        }
       });
       const headerLabels = Array.from(dynamicFields);
 
-      // Standard headers
       const csvRows = [];
-      csvRows.push(['Submission ID', 'Student Name', 'Email', 'Course', 'Branch', 'Semester', 'Date Submitted', ...headerLabels].join(','));
+      const headers = ['Receipt ID', 'Date Submitted'];
+      if (data.form?.type === 'quiz') headers.push('Score', 'Percentage', 'Passed');
+      
+      headers.push(...headerLabels);
+      
+      csvRows.push(headers.map(l => `"${String(l).replace(/"/g, '""')}"`).join(','));
+
+      const emojiSet = ['😠', '🙁', '😐', '🙂', '🤩', '🔥', '🚀', '🌟', '💖', '💯'];
 
       responsesToExport.forEach(r => {
         const row = [
-          `"${r.submissionId}"`,
-          `"${r.studentName}"`,
-          `"${r.email}"`,
-          `"${r.course}"`,
-          `"${r.branch}"`,
-          `"${r.semester}"`,
-          `"${new Date(r.createdAt).toLocaleString()}"`
+          `"${(r.receiptId || '').replace(/"/g, '""')}"`,
+          `"${r.createdAt ? new Date(r.createdAt).toLocaleString() : ''}"`
         ];
         
-        // Match dynamic answers to columns
+        if (data.form?.type === 'quiz') {
+          const qr = r.quizResult || {};
+          row.push(`"${qr.obtainedMarks !== undefined ? `${qr.obtainedMarks}/${qr.totalMarks}` : ''}"`);
+          row.push(`"${qr.percentage !== undefined ? qr.percentage + '%' : ''}"`);
+          row.push(`"${qr.passed !== undefined ? (qr.passed ? 'Yes' : 'No') : ''}"`);
+        }
+        
         headerLabels.forEach(label => {
-          const ans = r.answers.find(a => a.fieldLabel === label);
-          let val = ans ? (ans.value || '') : '';
-          val = String(val).replace(/"/g, '""'); // escape quotes
+          const ans = Array.isArray(r.answers) ? r.answers.find(a => a && a.fieldLabel === label) : null;
+          let val = ans && ans.value !== undefined && ans.value !== null ? ans.value : '';
+          
+          // Format based on type
+          const fieldDef = (data.form?.fields || []).find(f => (f.label || f.type) === label);
+          
+          if (val !== '') {
+            if (fieldDef?.type === 'emoji') {
+              const numVal = Number(val);
+              if (!isNaN(numVal)) {
+                val = emojiSet[(numVal - 1) % emojiSet.length] || val;
+              }
+            } else if (fieldDef?.type === 'rating') {
+              const maxVal = fieldDef.max ? Number(fieldDef.max) : 5;
+              val = `${val}/${maxVal} Stars`;
+            } else if (fieldDef?.type === 'slider') {
+              val = `${val}`;
+            }
+          }
+
+          if (Array.isArray(val)) val = val.join('; ');
+          else if (typeof val === 'object') val = JSON.stringify(val);
+          
+          val = String(val).replace(/"/g, '""');
           row.push(`"${val}"`);
         });
 
@@ -157,13 +188,14 @@ export default function Responses({ token }) {
       const a = document.createElement('a');
       a.setAttribute('hidden', '');
       a.setAttribute('href', url);
-      a.setAttribute('download', `${data.form.title || 'Form'}_Responses.csv`);
+      a.setAttribute('download', `${data.form?.title || 'Form'}_Responses.csv`);
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       showToast('Export successful');
     } catch (err) {
-      alert('Error exporting data');
+      console.error(err);
+      showToast('Error exporting data: ' + (err.message || ''));
     }
   };
 
@@ -229,16 +261,32 @@ export default function Responses({ token }) {
       {/* Toolbar */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
         {/* Search */}
-        <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-md">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Search by name, email, course, or ID..." 
-            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#111113] border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:border-indigo-500 dark:text-white shadow-sm transition-colors text-sm"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </form>
+        <form onSubmit={handleSearchSubmit} className="flex-1 max-w-2xl flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input 
+                type="text" 
+                placeholder={searchField === 'all' ? "Search all responses..." : `Search ${searchField}...`}
+                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#111113] border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:border-indigo-500 dark:text-white shadow-sm transition-colors text-sm"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <select 
+              className="bg-white dark:bg-[#111113] text-sm text-gray-600 dark:text-gray-300 outline-none p-2.5 border border-gray-200 dark:border-gray-800 rounded-xl font-medium cursor-pointer shadow-sm"
+              value={searchField}
+              onChange={(e) => setSearchField(e.target.value)}
+            >
+              <option value="all">All Fields (Master)</option>
+              <option value="studentName">Student Name</option>
+              <option value="email">Email</option>
+              <option value="course">Course</option>
+              <option value="receiptId">Receipt ID</option>
+              {data.form?.fields?.map(f => (
+                <option key={f.id} value={f.id}>{f.label || f.type}</option>
+              ))}
+            </select>
+          </form>
 
         {/* Filters / Sort / Bulk Actions */}
         <div className="flex flex-wrap items-center gap-3">
@@ -310,7 +358,7 @@ export default function Responses({ token }) {
                     </td>
                     <td className="px-6 py-4">
                       <span className="font-mono text-xs font-medium bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-gray-600 dark:text-gray-300">
-                        {r.submissionId}
+                        {r.receiptId}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -348,7 +396,7 @@ export default function Responses({ token }) {
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-3">
                     <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-indigo-600" checked={selectedIds.includes(r._id)} onChange={() => toggleSelection(r._id)} />
-                    <span className="font-mono text-xs font-medium bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-gray-600 dark:text-gray-300">{r.submissionId}</span>
+                    <span className="font-mono text-xs font-medium bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-gray-600 dark:text-gray-300">{r.receiptId}</span>
                   </div>
                   <div className="flex gap-2">
                      <button onClick={() => setSelectedResponse(r)} className="p-1.5 text-indigo-600 bg-indigo-50 rounded-md"><Eye size={14}/></button>

@@ -26,18 +26,18 @@ const storage = multer.diskStorage({
 
 // Validation
 const fileFilter = (req, file, cb) => {
-  const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4'];
+  const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'audio/mpeg', 'audio/wav', 'audio/ogg'];
   if (allowedMimes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only JPG, PNG, WEBP, GIF, and MP4 are allowed.'), false);
+    cb(new Error('Invalid file type. Only JPG, PNG, WEBP, GIF, MP4, MP3, WAV, and OGG are allowed.'), false);
   }
 };
 
 const upload = multer({ 
   storage,
   fileFilter,
-  limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit for videos
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit for videos/audio
 });
 
 // Upload endpoint
@@ -51,6 +51,7 @@ router.post('/upload', protect, upload.single('file'), async (req, res) => {
     let type = 'image';
     if (req.file.mimetype === 'image/gif') type = 'gif';
     if (req.file.mimetype.startsWith('video/')) type = 'video';
+    if (req.file.mimetype.startsWith('audio/')) type = 'audio';
 
     // Process via abstract service
     const mediaData = await MediaService.upload(req.file);
@@ -63,11 +64,15 @@ router.post('/upload', protect, upload.single('file'), async (req, res) => {
       ...mediaData
     });
 
-    // Send back the full URL (handling local dev vs production)
-    // For local, we prepend the backend URL if we want, or just let frontend handle relative
+    // Instead of hardcoding localhost, we can construct it dynamically based on the request,
+    // or return a relative URL. Let's return the full URL dynamically based on the request host.
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host');
+    const fullUrl = `${protocol}://${host}${media.url}`;
+
     res.status(201).json({
       _id: media._id,
-      url: `http://localhost:5000${media.url}`,
+      url: fullUrl,
       type: media.type,
       filename: media.filename
     });

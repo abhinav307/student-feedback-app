@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import html2pdf from 'html2pdf.js';
 import QRCode from 'react-qr-code';
@@ -13,7 +13,7 @@ export default function Receipt() {
   const receiptRef = useRef();
 
   useEffect(() => {
-    axios.get(`http://localhost:5000/api/responses/receipt/${receiptId}`)
+    api.get(`/responses/receipt/${receiptId}`)
       .then(res => setData(res.data))
       .catch(err => setError('Receipt not found.'));
   }, [receiptId]);

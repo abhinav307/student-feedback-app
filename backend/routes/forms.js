@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import Form from '../models/Form.js';
 import Response from '../models/Response.js';
 import { protect } from '../middleware/auth.js';
+import { normalizeFormFields } from '../utils/fieldNormalizer.js';
 
 const router = express.Router();
 
@@ -31,7 +32,17 @@ router.get('/public/:publicId', async (req, res) => {
       return res.status(403).json({ message: 'Maximum responses reached. This form is now closed.' });
     }
 
-    res.json(form);
+    const formObj = form.toObject();
+    
+    // SECURITY: Strip correct answers, marks, and explanations from the public payload
+    if (formObj.type === 'quiz' && formObj.fields) {
+      formObj.fields = formObj.fields.map(field => {
+        const { correctAnswer, marks, negativeMarks, explanation, ...safeField } = field;
+        return safeField;
+      });
+    }
+
+    res.json(formObj);
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -41,8 +52,9 @@ router.get('/public/:publicId', async (req, res) => {
 router.post('/', protect, async (req, res) => {
   try {
     const publicId = crypto.randomBytes(4).toString('hex');
+    const normalizedBody = normalizeFormFields(req.body);
     const newForm = new Form({
-      ...req.body,
+      ...normalizedBody,
       managerId: req.user._id,
       publicId
     });
@@ -79,7 +91,7 @@ router.put('/:id', protect, async (req, res) => {
   try {
     const updatedForm = await Form.findOneAndUpdate(
       { _id: req.params.id, managerId: req.user._id },
-      { $set: req.body },
+      { $set: normalizeFormFields(req.body) },
       { new: true }
     );
     if (!updatedForm) return res.status(404).json({ message: 'Form not found' });

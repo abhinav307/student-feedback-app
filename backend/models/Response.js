@@ -9,7 +9,7 @@ const answerSchema = new mongoose.Schema({
 
 const responseSchema = new mongoose.Schema({
   formId: { type: mongoose.Schema.Types.ObjectId, ref: 'Form', required: true },
-  submissionId: { type: String, unique: true, required: true },
+  receiptId: { type: String, unique: true, required: true },
   
   // Dynamically mapped fields based on form content heuristics
   studentName: { type: String, default: 'Anonymous' },
@@ -20,10 +20,16 @@ const responseSchema = new mongoose.Schema({
   
   answers: [answerSchema],
   
-  quizScore: { type: Number, default: 0 },
-  completionTime: { type: Number, default: 0 },
+  quizResult: {
+    totalMarks: { type: Number, default: 0 },
+    obtainedMarks: { type: Number, default: 0 },
+    percentage: { type: Number, default: 0 },
+    passed: { type: Boolean, default: false },
+    timeTaken: { type: Number, default: 0 },
+    questionResults: { type: [Object], default: [] }
+  },
   
   metadata: { type: Object, default: {} }
-}, { timestamps: true }); // timestamps adds createdAt (submittedAt)
+}, { timestamps: true, strict: false }); // timestamps adds createdAt (submittedAt)
 
 export default mongoose.model('Response', responseSchema);
