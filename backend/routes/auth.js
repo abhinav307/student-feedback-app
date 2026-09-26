@@ -67,6 +67,7 @@ function recordLoginSession(user, req, token, action = 'Login successful') {
 
 // Reusable email sender
 async function sendOtpEmail(toEmail, otp, subject = 'Your Formify Verification Code', recipientName = '') {
+  if (process.env.NODE_ENV === 'test') return console.log('Mock email sent in test mode');
   let transporter;
   const senderEmail = process.env.EMAIL_USER;
   

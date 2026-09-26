@@ -2,7 +2,8 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import app from '../server.js'; // Need to make sure server.js exports app
+import app from '../server.js';
+import User from '../models/User.js'; // Need to make sure server.js exports app
 
 let mongoServer;
 
@@ -30,11 +31,23 @@ describe('Auth & Forms API Integration', () => {
     let formPublicId = '';
     
     it('should register a new user', async () => {
-        const res = await request(app)
+        // Step 1: Initiate registration (sends OTP)
+        const res1 = await request(app)
             .post('/api/auth/register')
             .send({ name: 'Test', email: 'test@ci.com', password: 'password123' });
-        expect(res.status).toBe(201);
-        expect(res.body).toHaveProperty('token');
+        expect(res1.status).toBe(200);
+        
+        // Step 2: Retrieve the OTP from the database
+        const user = await User.findOne({ email: 'test@ci.com' });
+        expect(user).toBeTruthy();
+        expect(user.otp).toBeTruthy();
+        
+        // Step 3: Verify the OTP to complete registration
+        const res2 = await request(app)
+            .post('/api/auth/verify-register')
+            .send({ email: 'test@ci.com', otp: user.otp });
+        expect(res2.status).toBe(200);
+        expect(res2.body).toHaveProperty('token');
     });
 
     it('should login', async () => {
