@@ -3,6 +3,17 @@
 
 Formify completely re-imagines data collection. Stop relying on uninspired, rigid forms. Formify allows you to build highly personalized, branded, multi-step forms with embedded media, logic, and comprehensive analytics—all without writing a single line of code.
 
+## 🌐 Live Demo & Production Stack
+
+**Live Frontend Demo:** [https://formify-mocha.vercel.app](https://formify-mocha.vercel.app)
+
+Formify is fully configured for zero-cost cloud deployment using the following modern tech stack:
+- **Frontend Hosting:** [Vercel](https://vercel.com) (Serverless CDN, handles React Router perfectly)
+- **Backend Compute:** [Render](https://render.com) (Node.js/Express Web Service)
+- **Database:** [MongoDB Atlas](https://www.mongodb.com/atlas/database) (M0 Free Tier)
+- **Authentication:** Custom JWT Auth + [Google OAuth 2.0](https://console.cloud.google.com/) for seamless 1-click Sign-In.
+
+
 ## 🚀 Features
 
 ### 🎨 Form Builder & Customization (Theme Studio)
