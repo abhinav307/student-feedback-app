@@ -20,8 +20,14 @@ router.post('/quiz/start/:publicId', async (req, res) => {
     
     const settings = form.settings || {};
     const now = new Date();
-    if (settings.startDate && new Date(settings.startDate) > now) return res.status(403).json({ message: 'This quiz is not open yet.', code: 'QUIZ_UNAVAILABLE' });
-    if (settings.endDate && new Date(settings.endDate) < now) return res.status(403).json({ message: 'This quiz has expired.', code: 'QUIZ_UNAVAILABLE' });
+    if (settings.startDate && String(settings.startDate).trim() !== '') {
+      const start = new Date(settings.startDate);
+      if (!isNaN(start) && start > now) return res.status(403).json({ message: 'This quiz is not open yet.', code: 'QUIZ_UNAVAILABLE' });
+    }
+    if (settings.endDate && String(settings.endDate).trim() !== '') {
+      const end = new Date(settings.endDate);
+      if (!isNaN(end) && end < now) return res.status(403).json({ message: 'This quiz has expired.', code: 'QUIZ_UNAVAILABLE' });
+    }
     if (settings.maxResponses && (form.responseCount || 0) >= settings.maxResponses) {
       return res.status(403).json({ message: 'Maximum responses reached.', code: 'QUIZ_UNAVAILABLE' });
     }
@@ -66,8 +72,14 @@ router.post('/submit/:publicId', async (req, res) => {
     // Settings check
     const settings = form.settings || {};
     const now = new Date();
-    if (settings.startDate && new Date(settings.startDate) > now) return res.status(403).json({ message: 'This form is not open yet.' });
-    if (settings.endDate && new Date(settings.endDate) < now) return res.status(403).json({ message: 'This form has expired.' });
+    if (settings.startDate && String(settings.startDate).trim() !== '') {
+      const start = new Date(settings.startDate);
+      if (!isNaN(start) && start > now) return res.status(403).json({ message: 'This form is not open yet.' });
+    }
+    if (settings.endDate && String(settings.endDate).trim() !== '') {
+      const end = new Date(settings.endDate);
+      if (!isNaN(end) && end < now) return res.status(403).json({ message: 'This form has expired.' });
+    }
     if (settings.maxResponses && (form.responseCount || 0) >= settings.maxResponses) {
       form.status = 'closed';
       await form.save();
