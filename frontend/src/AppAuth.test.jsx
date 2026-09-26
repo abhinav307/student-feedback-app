@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import App from './App';
 import api from './services/api';
 
@@ -21,20 +22,20 @@ describe('Authentication Lifecycle', () => {
   });
 
   it('9. Frontend handles session-expired response cleanly', async () => {
-    // Set a fake token to simulate being logged in
     localStorage.setItem('token', 'fake-token');
 
-    render(<App />);
+    render(
+      <GoogleOAuthProvider clientId="test-client-id">
+        <App />
+      </GoogleOAuthProvider>
+    );
 
-    // Simulate the global API interceptor firing a 401 Unauthorized event
     window.dispatchEvent(new Event('auth-expired'));
 
-    // The App should clear the token from localStorage
     await waitFor(() => {
       expect(localStorage.getItem('token')).toBeNull();
     });
 
-    // We can also verify that we are redirected to Login (assuming Login page has a specific heading)
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: /Welcome Back/i })).toBeInTheDocument();
     });
