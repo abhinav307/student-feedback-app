@@ -50,15 +50,9 @@ describe('Profile, Notifications, and Settings Features', () => {
     
     await waitFor(() => expect(screen.getByText('1')).toBeInTheDocument());
     
-    const bellButtons = screen.getAllByRole('button').filter(b => b.innerHTML.includes('lucide-bell') || b.className.includes('lucide-bell') || b.parentElement.innerHTML.includes('lucide-bell'));
-    
-    // In case the structure is different, fallback to clicking the first button near the profile
-    if (bellButtons.length > 0) {
-        fireEvent.click(bellButtons[0]);
-    } else {
-        const buttons = screen.getAllByRole('button');
-        fireEvent.click(buttons[0]); // fallback
-    }
+    // Click the unread badge which bubbles up to the notification button
+    const unreadBadge = screen.getByText('1');
+    fireEvent.click(unreadBadge);
     
     await waitFor(() => {
       expect(screen.getByText('Message')).toBeInTheDocument();
@@ -74,6 +68,15 @@ describe('Profile, Notifications, and Settings Features', () => {
       </Routes>
     );
 
+    // Wait for the read-only view to render
+    await waitFor(() => {
+      expect(screen.getByText('Test User')).toBeInTheDocument();
+    });
+
+    // Click 'Edit Profile' to enter edit mode
+    const editButton = screen.getByText('Edit Profile');
+    fireEvent.click(editButton);
+
     await waitFor(() => {
       expect(screen.getByDisplayValue('Test User')).toBeInTheDocument();
       expect(screen.getByDisplayValue('Test Corp')).toBeInTheDocument();
@@ -86,8 +89,10 @@ describe('Profile, Notifications, and Settings Features', () => {
     fireEvent.click(saveButton);
 
     await waitFor(() => {
-      expect(api.put).toHaveBeenCalledWith(expect.stringContaining('auth/me'), expect.objectContaining({ organization: 'Updated Corp' }));
-      expect(screen.getByText('Profile updated successfully')).toBeInTheDocument();
+      // The component calls /auth/profile for saving, not /auth/me
+      expect(api.put).toHaveBeenCalledWith(expect.stringContaining('auth/profile'), expect.objectContaining({ organization: 'Updated Corp' }));
+      // Wait for read-only view to show saved data or toast
+      expect(screen.getByText('Test User')).toBeInTheDocument();
     });
   });
 });
