@@ -1,7 +1,8 @@
 {
   "env": {
     "node": true,
-    "es2021": true
+    "es2021": true,
+    "jest": true
   },
   "extends": "eslint:recommended",
   "parserOptions": {
@@ -9,6 +10,6 @@
     "sourceType": "module"
   },
   "rules": {
-    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^(correctAnswer|marks|negativeMarks|explanation|fieldSchema)$" }]
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^(correctAnswer|marks|negativeMarks|explanation|fieldSchema|normalizeFormFields)$" }]
   }
 }
