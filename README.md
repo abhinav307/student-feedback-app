@@ -1,110 +1,107 @@
-# Formify
-> A modern SaaS platform for creating, customizing, sharing, and analyzing highly engaging student forms.
+# 📝 Formify
 
-Formify completely re-imagines data collection. Stop relying on uninspired, rigid forms. Formify allows you to build highly personalized, branded, multi-step forms with embedded media, logic, and comprehensive analytics—all without writing a single line of code.
+Formify is a modern, highly interactive, and scalable full-stack application for building dynamic forms, quizzes, and feedback surveys. It features advanced form validation, timer-based quizzes, conditional logic, Google OAuth authentication, and rich media support.
 
-## 🌐 Live Demo & Production Stack
+---
 
-**Live Frontend Demo:** [https://formify-mocha.vercel.app](https://formify-mocha.vercel.app)
+## 🌐 Live Demo & Production Links
 
-Formify is fully configured for zero-cost cloud deployment using the following modern tech stack:
-- **Frontend Hosting:** [Vercel](https://vercel.com) (Serverless CDN, handles React Router perfectly)
-- **Backend Compute:** [Render](https://render.com) (Node.js/Express Web Service)
-- **Database:** [MongoDB Atlas](https://www.mongodb.com/atlas/database) (M0 Free Tier)
-- **Authentication:** Custom JWT Auth + [Google OAuth 2.0](https://console.cloud.google.com/) for seamless 1-click Sign-In.
+- **Frontend (Live Application)**: [https://formify-mocha.vercel.app](https://formify-mocha.vercel.app)
+- **Backend API**: [https://formify-backend-38ni.onrender.com](https://formify-backend-38ni.onrender.com)
 
+*(Note: The backend is hosted on Render's free tier, so it may take ~30 seconds to wake up upon initial request if it has been idle).*
 
-## 🚀 Features
+---
 
-### 🎨 Form Builder & Customization (Theme Studio)
-- **Drag-and-Drop Editor**: Intuitive 3-panel UI to instantly drag fields onto a live canvas.
-- **Rich Media**: First-class support for uploading Images, GIFs, Videos, and Logos directly to your form.
-- **Deep Theming**: Control background colors, CSS gradients, or upload custom background images.
-- **Card Styling**: Adjust form container radius, shadow, transparency, and width.
-- **Component Styling**: Configure global fonts, input background colors, borders, and rounded corners.
+## 🏗️ Production Tech Stack & Platforms
 
-### ⚙️ Powerful Settings & Workflows
-- **Publish Workflow**: Pre-publish checklist to catch empty forms.
-- **Lifecycle Management**: Safely transition forms between Draft, Published, Closed, and Archived.
-- **Automated Scheduling**: Define strict `Start Dates` and `End Dates` for automated form locking.
-- **Submission Quotas**: Set a `Maximum Responses` limit to automatically close the form.
-- **QR Code Generation**: Instantly generate, preview, and download HD `.png` QR codes for your live form.
+Formify is built using a modern JavaScript/Node ecosystem and is distributed across highly reliable cloud platforms to ensure scalability and data persistence.
 
-### 📊 Responses & Data Analytics
-- **Live Aggregation Engine**: Backend aggregation crunches massive Response arrays efficiently.
-- **Dashboard KPIs**: Total responses, Average 1-5 Star Ratings, and 30-day volume trends.
-- **Field Distribution Charts**: Automatically generated Pie Charts and Bar Charts for every choice/rating field using `recharts`.
-- **Response Explorer**: Paginated data-table with full-text fuzzy searching across all student responses.
-- **Exporting**: 1-click export to `CSV` and beautiful Printable `PDF` reports using `html2pdf.js`.
+### 🖥️ Frontend
+- **Framework**: React.js (via Vite)
+- **Styling**: Tailwind CSS, Lucide React (Icons)
+- **State & Routing**: React Router DOM v6
+- **Testing**: Vitest & React Testing Library
+- **Hosting**: [Vercel](https://vercel.com) - Provides edge-network delivery and fast SPA routing.
 
-### 🔒 Security & Privacy
-- **Student Privacy**: Authentic verifiable submission receipts via public `/verify/:receiptId` endpoints that hide student PII.
-- **Local Draft Saving**: Client-side `localStorage` caching ensures students never lose their form progress on accidental refresh.
-- **Secure Backend**: Modern Node.js Express server protected by JWT, Bcrypt, and strict Ownership checks on all routes.
+### ⚙️ Backend
+- **Framework**: Node.js & Express.js
+- **Architecture**: RESTful API
+- **Testing**: Vitest & Supertest (Integration Testing)
+- **Hosting**: [Render](https://render.com) - Powers the Node API securely in the cloud.
 
-## 🛠 Tech Stack
+### 🗄️ Database & Storage
+- **Primary Database**: [MongoDB Atlas](https://www.mongodb.com/atlas/database) - A fully managed cloud NoSQL database that safely stores users, forms, form responses, and metrics.
+- **Media Storage**: [Cloudinary](https://cloudinary.com/) - A robust cloud media API used to permanently host uploaded images, videos, and audio (preventing the data-loss issues common with ephemeral PaaS filesystems).
 
-- **Frontend:** React 18, Vite, React Router, Tailwind CSS, Recharts, Lucide React, html2pdf.js, react-qr-code
-- **Backend:** Node.js, Express, Mongoose, Multer (Media Uploads), JWT, Bcrypt
-- **Database:** MongoDB (uses `mongodb-memory-server` out of the box for instant zero-config local testing, easily connected to MongoDB Atlas for production).
+### 🔒 Security & Infrastructure
+- **Authentication**: [Google Cloud OAuth 2.0](https://console.cloud.google.com/) - Provides seamless, secure "Sign in with Google" functionality.
+- **CI/CD**: **GitHub Actions** - Automated pipelines that run the full 55+ integration & unit test suite on every push to ensure code stability before deployment.
 
-## 💻 Running Locally
+---
 
-You need Node.js (v18 or higher) installed.
+## ✨ Key Features
 
-### 1. Backend Setup
+- **Drag & Drop Form Builder**: Create complex layouts intuitively.
+- **Quiz Mode**: Assign points, negative marking, explanations, and enforce timed attempts.
+- **Rich Media**: Upload images, audio, and videos directly into form blocks.
+- **Advanced Logic**: Supports required fields, validation, and date restrictions.
+- **Authentication**: Two-Step OTP email verification and one-click Google Sign-In.
+- **Analytics Dashboard**: Real-time insights and visualizations of form responses.
+
+---
+
+## 🚀 Local Development Setup
+
+If you want to run Formify locally, follow these steps:
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/abhinav307/student-feedback-app.git
+cd student-feedback-app
+```
+
+### 2. Setup the Backend
 ```bash
 cd backend
 npm install
-npm start
 ```
-*Note: The backend starts on port `5000`. By default, it provisions a temporary in-memory MongoDB database so you can start testing immediately without signing up for Atlas.*
+Create a `.env` file in the `backend/` directory:
+```env
+PORT=5000
+MONGODB_URI=your_mongodb_atlas_uri
+JWT_SECRET=your_jwt_secret
+NODE_ENV=development
+GOOGLE_CLIENT_ID=your_google_client_id
+EMAIL_USER=your_smtp_email
+EMAIL_PASS=your_smtp_password
+CLOUDINARY_URL=your_cloudinary_url
+```
+Start the backend server:
+```bash
+npm run dev
+```
 
-### 2. Frontend Setup
+### 3. Setup the Frontend
+Open a new terminal window:
 ```bash
 cd frontend
 npm install
+```
+Create a `.env` file in the `frontend/` directory:
+```env
+VITE_API_URL=http://localhost:5000/api
+VITE_GOOGLE_CLIENT_ID=your_google_client_id
+```
+Start the frontend development server:
+```bash
 npm run dev
 ```
-*The frontend will be available at `http://localhost:5173`. Create a manager account and start building!*
 
-## 🐳 Docker Deployment
-
-The repository includes a complete `docker-compose.yml` for production deployments.
-
-```bash
-docker-compose up --build -d
-```
-- The frontend will be served at `http://localhost:80`
-- The backend API will be available at `http://localhost:5000`
-
-## ⚙️ Environment Variables
-
-To run the application in a production environment, add the following variables to your `.env` files:
-
-**Backend (`backend/.env`):**
-```env
-PORT=5000
-JWT_SECRET=your_super_secret_jwt_key
-MONGODB_URI=mongodb+srv://<user>:<password>@cluster0.mongodb.net/formify?retryWrites=true&w=majority
-```
-
-## 🌐 API Architecture
-
-The backend REST API exposes standard interfaces for the Manager dashboard and isolated interfaces for Public Form interaction. All Manager routes require `Authorization: Bearer <token>`.
-
-### Core Routes:
-- `POST /api/auth/register` & `POST /api/auth/login`
-- `GET /api/forms` & `POST /api/forms`
-- `GET /api/forms/public/:publicId` *(Handles rate limiting and lifecycle checks)*
-- `POST /api/responses/submit/:publicId` *(Handles submission and receipt generation)*
-- `GET /api/responses/verify/:receiptId` *(Public verification route)*
-- `GET /api/analytics/dashboard` & `GET /api/analytics/form/:formId`
-
-## 🧑‍💻 Contributing
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change. 
-
-Please make sure to update tests as appropriate.
+### 4. Running Tests
+Both the frontend and backend have comprehensive test suites.
+- To test the backend: `cd backend && npm run test`
+- To test the frontend: `cd frontend && npm run test`
 
 ---
-Built with ❤️ for Modern Data Collection.
+*Built with ❤️ for modern data collection.*
