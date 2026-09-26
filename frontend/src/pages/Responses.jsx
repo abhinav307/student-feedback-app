@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { useParams, Link } from 'react-router-dom';
 import { 
   ArrowLeft, Inbox, Clock, User, FileText, ChevronLeft, ChevronRight,
@@ -37,7 +37,7 @@ export default function Responses({ token }) {
   const fetchResponses = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`http://localhost:5000/api/responses/form/${formId}`, {
+      const res = await api.get(`/responses/form/${formId}`, {
         headers: { Authorization: `Bearer ${token}` },
         params: { page, limit: 10, search, sort: sortField, order: sortOrder }
       });
@@ -75,7 +75,7 @@ export default function Responses({ token }) {
   const deleteResponse = async (id) => {
     if (!window.confirm('Delete this response permanently?')) return;
     try {
-      await axios.delete(`http://localhost:5000/api/responses/${id}`, {
+      await api.delete(`/responses/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       showToast('Response deleted');
@@ -90,7 +90,7 @@ export default function Responses({ token }) {
     if (!window.confirm(`Delete ${selectedIds.length} responses permanently?`)) return;
     
     try {
-      await axios.post(`http://localhost:5000/api/responses/bulk-delete`, {
+      await api.post(`/responses/bulk-delete`, {
         formId,
         ids: selectedIds
       }, {
@@ -109,7 +109,7 @@ export default function Responses({ token }) {
       if (exportSelected && selectedIds.length > 0) {
         responsesToExport = data.responses.filter(r => selectedIds.includes(r._id));
       } else {
-        const res = await axios.get(`http://localhost:5000/api/responses/export/${formId}`, {
+        const res = await api.get(`/responses/export/${formId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         responsesToExport = res.data;
