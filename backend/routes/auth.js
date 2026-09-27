@@ -150,7 +150,8 @@ async function sendOtpEmail(toEmail, otp, subject = 'Your Formify Verification C
 
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, phone, password } = req.body;
+    let { name, email, phone, password } = req.body;
+    if (phone === "") phone = undefined;
     
     if (!name || !email || !password) return res.status(400).json({ message: 'Name, email, and password are required' });
 
@@ -429,7 +430,11 @@ router.put('/profile', protect, async (req, res) => {
     user.name = req.body.name || user.name;
     user.avatar = req.body.avatar !== undefined ? req.body.avatar : user.avatar;
     user.email = req.body.email || user.email; // Note: Might want to restrict email changes or require verification, but updating for now
-    user.phone = req.body.phone !== undefined ? req.body.phone : user.phone;
+    if (req.body.phone === '') {
+      user.phone = undefined;
+    } else if (req.body.phone !== undefined) {
+      user.phone = req.body.phone;
+    }
     user.organization = req.body.organization !== undefined ? req.body.organization : user.organization;
     user.contactEmail = req.body.contactEmail !== undefined ? req.body.contactEmail : user.contactEmail;
     user.displayName = req.body.displayName !== undefined ? req.body.displayName : user.displayName;
