@@ -140,7 +140,9 @@ export default function Receipt() {
                     {ans.value ? (
                       ans.fieldType === 'rating' ? (
                         <p className="text-amber-500 text-xl tracking-widest">
-                           {'★'.repeat(ans.value)}{'☆'.repeat(5 - ans.value)}
+                           {Number(ans.value) <= 10 
+                               ? '★'.repeat(Math.max(0, Number(ans.value))) + '☆'.repeat(Math.max(0, 5 - Number(ans.value)))
+                               : `★ ${ans.value}`}
                         </p>
                       ) : (
                         <p className="text-gray-600 whitespace-pre-wrap bg-gray-50 p-3 rounded-xl border border-gray-100">{ans.value}</p>

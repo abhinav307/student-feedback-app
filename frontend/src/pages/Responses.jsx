@@ -482,7 +482,9 @@ export default function Responses({ token }) {
                       {ans.value ? (
                         ans.fieldType === 'rating' ? (
                            <div className="text-2xl text-amber-400 tracking-widest">
-                             {'★'.repeat(ans.value)}{'☆'.repeat(5 - ans.value)}
+                             {Number(ans.value) <= 10 
+                               ? '★'.repeat(Math.max(0, Number(ans.value))) + '☆'.repeat(Math.max(0, 5 - Number(ans.value)))
+                               : `★ ${ans.value}`}
                            </div>
                         ) : (
                           <div className="text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{ans.value}</div>
