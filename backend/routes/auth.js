@@ -71,7 +71,16 @@ async function sendOtpEmail(toEmail, otp, subject = 'Your Formify Verification C
   let transporter;
   const senderEmail = process.env.EMAIL_USER;
   
-  if (senderEmail && process.env.EMAIL_PASS) {
+  if (process.env.RESEND_API_KEY) {
+      transporter = nodemailer.createTransport({
+        host: 'smtp.resend.com',
+        port: 465,
+        secure: true,
+        auth: { user: 'resend', pass: process.env.RESEND_API_KEY },
+        connectionTimeout: 10000,
+        socketTimeout: 15000
+      });
+    } else if (senderEmail && process.env.EMAIL_PASS) {
     transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: { user: senderEmail, pass: process.env.EMAIL_PASS },
