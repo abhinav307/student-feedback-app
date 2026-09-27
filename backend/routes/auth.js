@@ -1,6 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { OAuth2Client } from 'google-auth-library';
 import twilio from 'twilio';
 import crypto from 'crypto';
@@ -68,23 +69,33 @@ function recordLoginSession(user, req, token, action = 'Login successful') {
 // Reusable email sender
 async function sendOtpEmail(toEmail, otp, subject = 'Your Formify Verification Code', recipientName = '') {
   if (process.env.NODE_ENV === 'test') return console.log('Mock email sent in test mode');
-  let transporter;
-  const senderEmail = process.env.EMAIL_USER;
-  
+  const senderEmail = process.env.EMAIL_USER || 'onboarding@resend.dev';
+  const greeting = recipientName ? `Hi ${recipientName},` : 'Hi there,';
+  const year = new Date().getFullYear();
+  const textContent = `${greeting}\n\nYou requested a verification code for your Formify account.\n\nYour code is: ${otp}\n\nThis code will expire in 10 minutes.\n\nIf you did not request this code, no action is needed - your account is safe.\n\nThanks,\nThe Formify Team\nhttps://formify.app\n\n© ${year} Formify. All rights reserved.`;
+
   if (process.env.RESEND_API_KEY) {
-      transporter = nodemailer.createTransport({
-        host: 'smtp.resend.com',
-        port: 465,
-        secure: true,
-        auth: { user: 'resend', pass: process.env.RESEND_API_KEY },
-        connectionTimeout: 10000,
-        socketTimeout: 15000
-      });
-    } else if (senderEmail && process.env.EMAIL_PASS) {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    console.log("Using Resend API to send email to", toEmail);
+    const { data, error } = await resend.emails.send({
+      from: `Formify <${senderEmail}>`,
+      to: [toEmail],
+      subject: subject,
+      text: textContent
+    });
+    if (error) {
+      throw new Error(error.message);
+    }
+    console.log(`Resend API Email sent to ${toEmail}: `, data);
+    return data;
+  }
+  
+  let transporter;
+  if (senderEmail && process.env.EMAIL_PASS) {
     transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: { user: senderEmail, pass: process.env.EMAIL_PASS },
-      connectionTimeout: 15000, // Fail quickly after 15s instead of hanging for 5 mins
+      connectionTimeout: 15000,
       greetingTimeout: 15000,
       socketTimeout: 20000
     });
@@ -96,67 +107,14 @@ async function sendOtpEmail(toEmail, otp, subject = 'Your Formify Verification C
     });
   }
 
-  const greeting = recipientName ? `Hi ${recipientName},` : 'Hi there,';
-  const year = new Date().getFullYear();
-
   const info = await transporter.sendMail({
     from: `"Formify - Student Feedback Platform" <${senderEmail}>`,
     replyTo: senderEmail,
     to: toEmail,
     subject,
-    // Plain text version (critical for anti-spam)
-    text: `${greeting}\n\nYou requested a verification code for your Formify account.\n\nYour code is: ${otp}\n\nThis code will expire in 10 minutes.\n\nIf you did not request this code, no action is needed — your account is safe.\n\nThanks,\nThe Formify Team\nhttps://formify.app\n\n© ${year} Formify. All rights reserved.`,
-    // HTML version
-    html: `
-<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0; padding:0; background-color:#f9fafb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb; padding: 40px 0;">
-    <tr><td align="center">
-      <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow:hidden;">
-        
-        <!-- Header -->
-        <tr><td style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 32px 40px; text-align:center;">
-          <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700; letter-spacing:-0.5px;">Formify</h1>
-          <p style="margin:8px 0 0; color:rgba(255,255,255,0.85); font-size:14px;">Student Feedback Platform</p>
-        </td></tr>
-        
-        <!-- Body -->
-        <tr><td style="padding: 36px 40px 24px;">
-          <p style="margin:0 0 16px; color:#111827; font-size:16px; line-height:1.6;">${greeting}</p>
-          <p style="margin:0 0 24px; color:#374151; font-size:15px; line-height:1.6;">
-            You recently requested a verification code for your Formify account. Please use the code below to complete your verification:
-          </p>
-          
-          <!-- OTP Code Box -->
-          <div style="background:#f3f4f6; border: 2px dashed #d1d5db; border-radius:12px; padding:24px; text-align:center; margin: 0 0 24px;">
-            <p style="margin:0 0 8px; color:#6b7280; font-size:12px; text-transform:uppercase; letter-spacing:2px; font-weight:600;">Verification Code</p>
-            <p style="margin:0; font-size:36px; font-weight:800; letter-spacing:10px; color:#4f46e5; font-family: 'Courier New', monospace;">${otp}</p>
-          </div>
-          
-          <p style="margin:0 0 8px; color:#6b7280; font-size:13px; line-height:1.5;">⏱ This code will expire in <strong>10 minutes</strong>.</p>
-          <p style="margin:0 0 0; color:#6b7280; font-size:13px; line-height:1.5;">If you didn't request this code, no action is needed — your account is safe and no one can access it without this code.</p>
-        </td></tr>
-        
-        <!-- Divider -->
-        <tr><td style="padding: 0 40px;"><hr style="border:none; border-top:1px solid #e5e7eb; margin:0;"></td></tr>
-        
-        <!-- Footer -->
-        <tr><td style="padding: 24px 40px 32px; text-align:center;">
-          <p style="margin:0 0 8px; color:#9ca3af; font-size:12px;">You received this email because a verification was requested for <strong>${toEmail}</strong>.</p>
-          <p style="margin:0; color:#9ca3af; font-size:12px;">© ${year} Formify — Student Feedback Platform. All rights reserved.</p>
-        </td></tr>
-        
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>
-    `
+    text: textContent
   });
-
-  console.log(`Email sent to ${toEmail}. Preview: ${nodemailer.getTestMessageUrl(info) || 'N/A (real Gmail)'}`);
+  console.log(`Email sent to ${toEmail}. Preview: ${nodemailer.getTestMessageUrl(info) || 'N/A'}`);
   return info;
 }
 
