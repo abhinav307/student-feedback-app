@@ -74,7 +74,10 @@ async function sendOtpEmail(toEmail, otp, subject = 'Your Formify Verification C
   if (senderEmail && process.env.EMAIL_PASS) {
     transporter = nodemailer.createTransport({
       service: 'gmail',
-      auth: { user: senderEmail, pass: process.env.EMAIL_PASS }
+      auth: { user: senderEmail, pass: process.env.EMAIL_PASS },
+      connectionTimeout: 15000, // Fail quickly after 15s instead of hanging for 5 mins
+      greetingTimeout: 15000,
+      socketTimeout: 20000
     });
   } else {
     const testAccount = await nodemailer.createTestAccount();
